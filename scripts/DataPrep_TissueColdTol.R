@@ -94,12 +94,18 @@ cold_summ <- cold_all_short %>%
   group_by(Tissue_combined, Species) %>% 
   summarise(ave = mean(med_supercooling, na.rm = TRUE)) 
 
-# basic graph of the data. I don't really care for hte box plot format
+# basic graph of the data. I don't really care for hte box plot format (Changes: filter out all speciesXtissue combos with < 4 reps; fix colors; species codes or full spcies names; shift graph so y legend fits; center justify yaxis so cold tolerance is centered over the middle of the second line of text)
 ggplot(data = cold_all_short, 
        aes(x = Species, y = med_supercooling, fill = factor(Tissue_combined))) +
   geom_boxplot(notch = FALSE, varwidth = FALSE) +
+  ylab("Cold tolerance\n(median supercooling temp "*~degree~"C)") +
   xlab("Species") +
-  theme_classic()
+  guides(fill=guide_legend(title="Tissue")) +
+  theme_classic() +
+  theme(axis.text.x=element_text(angle=90,hjust=1),
+        plot.margin = unit(c(0.5, 0.5, 0.5, 1), "cm"),
+        axis.title.y=element_text(size=13, hjust=0.5)) 
+
 
 # basic graph of cold tolerance of different species
 ggplot(data = cold_all_short, 
@@ -243,6 +249,7 @@ anova(q2_all_mod)
 # For this we want to use only seedlings, not cotyleadons, since their mass would be different
 
 ##****WARNING**** AS OF THIS MORNING, MISSING SOME DRY MASSES FOR SEEDLINGS, ESPECIALLY TRAOHI. LOTS OF MASSES MISSING FOR LEAVES AND ROOTS, TOO
+## Update: These data have been entered, need to look on google drive to get the most uptodate version
 
 size <- cold_all_short %>%
   filter(Tissue == "Seedling") # we don't want cotyledons so using "Tissue"
