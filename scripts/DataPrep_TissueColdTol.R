@@ -92,10 +92,26 @@ cold_all_short <- dplyr::bind_rows(blah, cold_all_s)
 # summarize supercooling data by species and tissue type just because I was curious and wanted to see the numbers
 cold_summ <- cold_all_short %>% 
   group_by(Tissue_combined, Species) %>% 
-  summarise(ave = mean(med_supercooling, na.rm = TRUE)) 
+  summarise(reps = n(),
+            ave = mean(med_supercooling, na.rm = TRUE)) 
 
-# basic graph of the data. I don't really care for hte box plot format (Changes: filter out all speciesXtissue combos with < 4 reps; fix colors; species codes or full spcies names; shift graph so y legend fits; center justify yaxis so cold tolerance is centered over the middle of the second line of text)
-ggplot(data = cold_all_short, 
+#making a total rep column to add to full dataset so I can filter by it
+reps <- cold_all_short %>% 
+  drop_na(med_supercooling) %>%
+  group_by(Tissue_combined, Species) %>% 
+  summarise(tot_reps = n())
+
+cold_all_short <- left_join(cold_all_short, reps)
+
+## ~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
+# GRAPHING
+## ~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
+
+## Unhash these next two lines when you want to save a graph. Possibly change the name if you don't want to overwrite the last one
+#dev.off() #cleaning R, just in case
+#pdf("/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/ColdTol_byspp.pdf", width = 10, height = 5) #This saves the pdf
+## basic graph of the data. I don't really care for hte box plot format (Changes: fix colors; species codes or full spcies names; shift graph so y legend fits; center justify yaxis so cold tolerance is centered over the middle of the second line of text)
+ggplot(data = cold_all_short %>% filter(tot_reps>4), 
        aes(x = Species, y = med_supercooling, fill = factor(Tissue_combined))) +
   geom_boxplot(notch = FALSE, varwidth = FALSE) +
   ylab("Cold tolerance\n(median supercooling temp "*~degree~"C)") +
@@ -105,10 +121,24 @@ ggplot(data = cold_all_short,
   theme(axis.text.x=element_text(angle=90,hjust=1),
         plot.margin = unit(c(0.5, 0.5, 0.5, 1), "cm"),
         axis.title.y=element_text(size=13, hjust=0.5)) 
+dev.off()
 
+## Graphing tissues separately
+#dev.off() #cleaning R, just in case
+#pdf("/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/ColdTol_byTissue.pdf", width = 10, height = 5) #This saves the pdf
+ggplot(data = cold_all_short %>% filter(tot_reps>4), 
+       aes(x = Species, y = med_supercooling, fill = factor(Tissue_combined))) +
+  geom_boxplot(notch = FALSE, varwidth = FALSE) +
+  ylab("Cold tolerance\n(median supercooling temp "*~degree~"C)") +
+  xlab("Species") +
+  guides(fill=guide_legend(title="Tissue")) +
+  theme_classic() +
+  facet_wrap(vars(Tissue_combined)) +
+  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 1), "cm"))
+dev.off()
 
 # basic graph of cold tolerance of different species
-ggplot(data = cold_all_short, 
+ggplot(data = cold_all_short %>% filter(tot_reps>4), 
        aes(x = Species, y = med_supercooling)) +
   geom_point(aes(color = Tissue_combined)) +
   xlab("Species") +
@@ -121,14 +151,16 @@ ggplot(data = cold_all_short,
   xlab("Species") +
   theme_classic()
 
-
-# Statistical test, Does cold tolerance differ with species, tissue, and the interaction? Video was also included to account for the variation of different runs. Video could (should?) be a random effect but in this model it is fixed
+## *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
+# Statistical test
+## *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
+# Does cold tolerance differ with species, tissue, and the interaction? Video was also included to account for the variation of different runs. Video could (should?) be a random effect but in this model it is fixed
 mod_tiss  <- lm (med_supercooling ~
         Species +
           video +
           Tissue_combined +
           Species:Tissue_combined,
-        data = cold_all_short)
+        data = cold_all_short %>% filter(tot_reps>4))
         
 print(mod_tiss)
 summary(mod_tiss)
@@ -140,13 +172,16 @@ posthoc <- TukeyHSD(aov(med_supercooling ~
                           Species +
                           Tissue_combined +
                           Species:Tissue_combined, 
-                        data = cold_all_short))
+                        data = cold_all_short%>% filter(tot_reps>4)))
 print(posthoc)
 
+#The results above are too much to take in at once. This cleans and organizes the results so only looking at differences between tissues of the same species
+## NOTE: If the number or reps is changed then make sure to check the indexing in the code below 
+## These results don't make much scence. From what I understand, there are only sig diffs with DESILL leaf-seedling, HELHEL leaf-seedling and DESIL root-leaf, but when looking at the graph it doesn't look right
 k <- do.call(rbind.data.frame, posthoc) %>% #turns it into a dataframe
   mutate(comp = rownames(.)) %>%
   slice(-c(1:253)) %>% #tossing all video comparisions
-  slice(-c(1:123)) %>% #now taking out all spp comparisions
+  slice(-c(1:108)) %>% #now taking out all spp comparisions and tissue
   separate(comp, c("first", "second"), sep = "\\.") %>% # split by period
   separate(second, c("spp1", "tiss1", "spp2", "tiss2"), sep = "([\\:\\-])") %>%
   mutate(same_spp = if_else(spp1 == spp2, 1, 0)) %>% #finding species matches
