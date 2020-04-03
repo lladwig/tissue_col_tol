@@ -31,6 +31,7 @@ files <- list.files(path = "data/tissue_test_results", full.names = T, pattern =
 coldtol_orig <- files %>% map_dfr(~read.csv(.))
 
 sp_id <- read_csv("data/FreezeTrial.csv") # links sample ID to plate position on supercooling run
+sp_id2 <-read_csv("data/FreezeTrial_20200403.csv")#updated file that has tissue mass entered for more samples
 date <- read_csv("data/Video_tracking.csv") #link date to video name
 plant_date <- read_csv("data/PlantingDate_TissueColdTol.csv") # Planting date
 emergence <- read_csv("data/SeedlingEmergence_TissueColdTol.csv") # Seedling emergence
@@ -46,7 +47,7 @@ coldtol <- dplyr::filter(coldtol_orig, n.samples > 5) # toss low sample sizes, i
 coldtol <- dplyr::filter(coldtol, sc.var < 0.1) # Toss highly variable measurements, if sc_var > 0.1
 
 # fOR the first few trials, two pixel points were selected in the software to calculate super cooling. The code below averages the readings from those two points
-sp_id <- sp_id %>% 
+sp_id2 <- sp_id2 %>% 
   select(-Trial_order, -position, -Date_Weighted, -Initials, -Notes, -old_Tissue) %>% 
   mutate(Plate_Num = as.numeric(Plate_Num)) %>% 
   filter(`Experiment Type` == "Seedling Freeze Trial") %>% 
@@ -54,7 +55,7 @@ sp_id <- sp_id %>%
   filter(!duplicated(Plate_Num))
 
 # merge video id onto the species information sheet
-b <- left_join(sp_id, date, by = c("Date_Froze" = "Trial_date", "Trial_num" = "Trial_num"))
+b <- left_join(sp_id2, date, by = c("Date_Froze" = "Trial_date", "Trial_num" = "Trial_num"))
 
 # Merge species id to supercooling by mergeing by video id and plate position. Also correcting spelling errors and grouping cotyledons with seedlings
 coldtol$sample <- as.numeric(coldtol$sample)
@@ -110,6 +111,7 @@ cold_all_short <- left_join(cold_all_short, reps)
 ## Unhash these next two lines when you want to save a graph. Possibly change the name if you don't want to overwrite the last one
 #dev.off() #cleaning R, just in case
 #pdf("/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/ColdTol_byspp.pdf", width = 10, height = 5) #This saves the pdf
+
 ## basic graph of the data. I don't really care for hte box plot format (Changes: fix colors; species codes or full spcies names; shift graph so y legend fits; center justify yaxis so cold tolerance is centered over the middle of the second line of text)
 ggplot(data = cold_all_short %>% filter(tot_reps>4), 
        aes(x = Species, y = med_supercooling, fill = factor(Tissue_combined))) +
@@ -120,10 +122,11 @@ ggplot(data = cold_all_short %>% filter(tot_reps>4),
   theme_classic() +
   theme(axis.text.x=element_text(angle=90,hjust=1),
         plot.margin = unit(c(0.5, 0.5, 0.5, 1), "cm"),
-        axis.title.y=element_text(size=13, hjust=0.5)) 
+        axis.title.y=element_text(size=13, hjust=0.5),
+        panel.border = element_rect(colour = "black", fill = NA, size =1)) 
 dev.off()
 
-## Graphing tissues separately
+## Graphing tissues separately: This helps show how seedling were more cold tolerant but also more variable. Edits: get rid of boxes around tissue types; get rid of legend; Possibly come up with a better way to show the differences in variation. 
 #dev.off() #cleaning R, just in case
 #pdf("/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/ColdTol_byTissue.pdf", width = 10, height = 5) #This saves the pdf
 ggplot(data = cold_all_short %>% filter(tot_reps>4), 
@@ -134,8 +137,23 @@ ggplot(data = cold_all_short %>% filter(tot_reps>4),
   guides(fill=guide_legend(title="Tissue")) +
   theme_classic() +
   facet_wrap(vars(Tissue_combined)) +
-  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 1), "cm"))
+  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 1), "cm"),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
 dev.off()
+
+## raw data graphed by tissue type. not that compelling
+ggplot(data = cold_all_short %>% filter(tot_reps>4), 
+       aes(x = Species, y = med_supercooling, fill = factor(Tissue_combined))) +
+  geom_point(aes(color = Tissue_combined)) +
+  ylab("Cold tolerance\n(median supercooling temp "*~degree~"C)") +
+  xlab("Species") +
+  guides(fill=guide_legend(title="Tissue")) +
+  theme_classic() +
+  facet_wrap(vars(Tissue_combined)) +
+  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 1), "cm"),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
 
 # basic graph of cold tolerance of different species
 ggplot(data = cold_all_short %>% filter(tot_reps>4), 
@@ -166,7 +184,24 @@ print(mod_tiss)
 summary(mod_tiss)
 anova(mod_tiss)
 
-## This is the posthoc tests to see where the differences lie
+#This code gives me believable differences but I'm not sure if it's the correct way to do it becaues it only looks at Species:Tissue comparisons. Those are the only comparissons I'm interested in anyways, but it feels wierd not to have the other factors in the model. 
+posthoc2 <- TukeyHSD(aov(med_supercooling ~
+                           Species:Tissue_combined, 
+                         data = cold_all_short%>% filter(tot_reps>4)))
+print(posthoc2)
+
+# adjusting the data a bit so it's easier to look at the comparisions I want  
+m <- do.call(rbind.data.frame, posthoc2) %>% #turns it into a dataframe
+  mutate(comp = rownames(.)) %>%
+  separate(comp, c("first", "second"), sep = "\\.") %>% # split by period
+  separate(second, c("spp1", "tiss1", "spp2", "tiss2"), sep = "([\\:\\-])") %>%
+  mutate(same_spp = if_else(spp1 == spp2, 1, 0)) %>% #finding species matches
+  filter(same_spp == 1)
+
+#saving posthoc results so I can look at them later
+write_csv(m, "/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/tissue_spp_posthoc.csv")
+
+## This is my first try at the posthoc tests to see where the differences lie. It doesn't seem to be working here and I'm not sure why. One difference between this and the test above is that this uses the model object aov while the model above was a lm - not sure if that matters too much
 posthoc <- TukeyHSD(aov(med_supercooling ~
                           video +
                           Species +
@@ -188,8 +223,6 @@ k <- do.call(rbind.data.frame, posthoc) %>% #turns it into a dataframe
   filter(same_spp == 1)
   
 
-  
-  
 
 
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
@@ -297,7 +330,7 @@ ggplot(data = size, #%>% filter(spp != "AQUCAN"),
   ylab("Seedling cold tolerance (C)") +
   #geom_smooth(method = "auto") +
   xlim(0, 15) +
-  facet_grid(Species) +
+  facet_wrap(vars(Species)) +
   theme_classic()  
 
 
