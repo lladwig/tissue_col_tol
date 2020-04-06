@@ -31,7 +31,7 @@ files <- list.files(path = "data/tissue_test_results", full.names = T, pattern =
 coldtol_orig <- files %>% map_dfr(~read.csv(.))
 
 sp_id <- read_csv("data/FreezeTrial.csv") # links sample ID to plate position on supercooling run
-sp_id2 <-read_csv("data/FreezeTrial_20200403.csv")#updated file that has tissue mass entered for more samples
+sp_id2 <-read_csv("data/FreezeTrial_20200403.csv")#updated file that has tissue mass entered for more samples. Ideally we'd use this updated dataset instead of sp_id becaues it has more complete tissue weights, but sp_id2 doesn't work nice in the code below - something must not merge correctly beccause we loose all the root and leaf measures. I don't have time to work through the code right now so for now I'm carrying on using sp_id. but, when and if we decide to look at mass, sp_id2 will be needed
 date <- read_csv("data/Video_tracking.csv") #link date to video name
 plant_date <- read_csv("data/PlantingDate_TissueColdTol.csv") # Planting date
 emergence <- read_csv("data/SeedlingEmergence_TissueColdTol.csv") # Seedling emergence
@@ -47,7 +47,7 @@ coldtol <- dplyr::filter(coldtol_orig, n.samples > 5) # toss low sample sizes, i
 coldtol <- dplyr::filter(coldtol, sc.var < 0.1) # Toss highly variable measurements, if sc_var > 0.1
 
 # fOR the first few trials, two pixel points were selected in the software to calculate super cooling. The code below averages the readings from those two points
-sp_id2 <- sp_id2 %>% 
+r <- sp_id %>% 
   select(-Trial_order, -position, -Date_Weighted, -Initials, -Notes, -old_Tissue) %>% 
   mutate(Plate_Num = as.numeric(Plate_Num)) %>% 
   filter(`Experiment Type` == "Seedling Freeze Trial") %>% 
@@ -55,7 +55,7 @@ sp_id2 <- sp_id2 %>%
   filter(!duplicated(Plate_Num))
 
 # merge video id onto the species information sheet
-b <- left_join(sp_id2, date, by = c("Date_Froze" = "Trial_date", "Trial_num" = "Trial_num"))
+b <- left_join(r, date, by = c("Date_Froze" = "Trial_date", "Trial_num" = "Trial_num"))
 
 # Merge species id to supercooling by mergeing by video id and plate position. Also correcting spelling errors and grouping cotyledons with seedlings
 coldtol$sample <- as.numeric(coldtol$sample)
@@ -109,8 +109,8 @@ cold_all_short <- left_join(cold_all_short, reps)
 ## ~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
 
 ## Unhash these next two lines when you want to save a graph. Possibly change the name if you don't want to overwrite the last one
-#dev.off() #cleaning R, just in case
-#pdf("/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/ColdTol_byspp.pdf", width = 10, height = 5) #This saves the pdf
+dev.off() #cleaning R, just in case
+pdf("/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/ColdTol_byspp_wletters.pdf", width = 15, height = 7) #This saves the pdf
 
 ## basic graph of the data. I don't really care for hte box plot format (Changes: fix colors; species codes or full spcies names; shift graph so y legend fits; center justify yaxis so cold tolerance is centered over the middle of the second line of text)
 ggplot(data = cold_all_short %>% filter(tot_reps>4), 
@@ -123,7 +123,31 @@ ggplot(data = cold_all_short %>% filter(tot_reps>4),
   theme(axis.text.x=element_text(angle=90,hjust=1),
         plot.margin = unit(c(0.5, 0.5, 0.5, 1), "cm"),
         axis.title.y=element_text(size=13, hjust=0.5),
-        panel.border = element_rect(colour = "black", fill = NA, size =1)) 
+        panel.border = element_rect(colour = "black", fill = NA, size =1)) +
+  annotate("text", x = 2.75, y = -14.5, label = "B") + #ASCSYR
+  annotate("text", x = 3, y = -12, label = "AB", size = 3) +  #ASCSYR
+  annotate("text", x = 3.25, y = -9, label = "A") + #ASCSYR
+  annotate("text", x = 4.75, y = -13, label = "B") + #DESILL
+  annotate("text", x = 5, y = -12.2, label = "AB", size = 3) + #DESILL
+  annotate("text", x = 5.25, y = -9, label = "A") + #DESILL
+  annotate("text", x = 5.75, y = -11.5, label = "AB", size = 3) + #HELHEL
+  annotate("text", x = 6, y = -13.7, label = "B") + #HELHEL
+  annotate("text", x = 6.25, y = -9.05, label = "A") + #HELHEL
+  annotate("text", x = 7.75, y = -15.5, label = "B") + #OXAVIO
+  annotate("text", x = 8, y = -10.5, label = "A") + #OXAVIO
+  annotate("text", x = 8.25, y = -9.22, label = "A") + #OXAVIO
+  annotate("text", x = 8.75, y = -16, label = "B") + #PREALB
+  annotate("text", x = 9, y = -11, label = "A") + #PREALB
+  annotate("text", x = 9.25, y = -9.22, label = "A") + #PREALB
+  annotate("text", x = 9.75, y = -12, label = "B") + #RATPIN
+  annotate("text", x = 10, y = -9.3, label = "AB", size = 3) + #RATPIN
+  annotate("text", x = 10.25, y = -8.95, label = "A") + #RATPIN
+  annotate("text", x = 10.75, y = -16, label = "B") + #SOLGRA
+  annotate("text", x = 11, y = -11, label = "A") + #SOLGRA
+  annotate("text", x = 11.25, y = -9.7, label = "A") + #SOLGRA
+  annotate("text", x = 13.75, y = -18, label = "B") + #SYMPIL
+  annotate("text", x = 14, y = -10.4, label = "A") + #SYMPIL
+  annotate("text", x = 14.25, y = -8.5, label = "A")  #SYMPIL
 dev.off()
 
 ## Graphing tissues separately: This helps show how seedling were more cold tolerant but also more variable. Edits: get rid of boxes around tissue types; get rid of legend; Possibly come up with a better way to show the differences in variation. 
