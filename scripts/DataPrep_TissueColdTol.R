@@ -22,6 +22,7 @@ library(lme4)
 #library(foreign)
 #library(agricolae)
 library(TDPanalysis) #date to DOY conversion
+library(stringr)
 
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
 ##              Importing data 
@@ -31,7 +32,12 @@ files <- list.files(path = "data/tissue_test_results", full.names = T, pattern =
 coldtol_orig <- files %>% map_dfr(~read.csv(.))
 
 sp_id <- read_csv("data/FreezeTrial.csv") # links sample ID to plate position on supercooling run
-sp_id2 <-read_csv("data/FreezeTrial_20200403.csv")#updated file that has tissue mass entered for more samples. Ideally we'd use this updated dataset instead of sp_id becaues it has more complete tissue weights, but sp_id2 doesn't work nice in the code below - something must not merge correctly beccause we loose all the root and leaf measures. I don't have time to work through the code right now so for now I'm carrying on using sp_id. but, when and if we decide to look at mass, sp_id2 will be needed
+sp_id2 <-read_csv("data/FreezeTrial_20200403.csv")#updated file that has tissue mass entered for more samples. Ideally we'd use this updated dataset instead of sp_id becaues it has more complete tissue weights, but sp_id2 doesn't work nice in the code below - something must not merge correctly and I havn't figured out what yet.  
+#One issue resolved: For some of the dates in the updated file and 0 was added to the front of the month in the date so it doesn't merge well with other datasets. Fucking excel and it's horrible use of dates!!!
+#formating Date so it matches the other datasets
+sp_id2$Date_Froze = str_remove(sp_id2$Date_Froze, "^0+")
+# but still drops some reps when merged and I'm not sure why
+
 date <- read_csv("data/Video_tracking.csv") #link date to video name
 plant_date <- read_csv("data/PlantingDate_TissueColdTol.csv") # Planting date
 emergence <- read_csv("data/SeedlingEmergence_TissueColdTol.csv") # Seedling emergence
@@ -109,8 +115,8 @@ cold_all_short <- left_join(cold_all_short, reps)
 ## ~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
 
 ## Unhash these next two lines when you want to save a graph. Possibly change the name if you don't want to overwrite the last one
-dev.off() #cleaning R, just in case
-pdf("/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/ColdTol_byspp_wletters.pdf", width = 15, height = 7) #This saves the pdf
+#dev.off() #cleaning R, just in case
+#pdf("/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/ColdTol_byspp_wletters.pdf", width = 15, height = 7) #This saves the pdf
 
 ## basic graph of the data. I don't really care for hte box plot format (Changes: fix colors; species codes or full spcies names; shift graph so y legend fits; center justify yaxis so cold tolerance is centered over the middle of the second line of text)
 ggplot(data = cold_all_short %>% filter(tot_reps>4), 
@@ -187,10 +193,11 @@ ggplot(data = cold_all_short %>% filter(tot_reps>4),
   theme_classic()
 
 # basic graph of cold tolerance across the different videos
-ggplot(data = cold_all_short, 
-       aes(x = video, y = med_supercooling)) +
-  geom_point(aes(color = Tissue_combined)) +
+ggplot(data = cold_all_short %>% filter(Tissue == "Seedling"), 
+       aes(x = Date_Froze, y = med_supercooling, color = Species)) +
+  geom_point() +
   xlab("Species") +
+  geom_smooth(method = "lm", se = FALSE) +
   theme_classic()
 
 ## *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
@@ -339,28 +346,59 @@ anova(q2_all_mod)
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
 #There's a lot of variation in seedling cold tolerance, so we were tyring to understand some of this variation. Seedling size mgiht be one factor.
 # For this we want to use only seedlings, not cotyleadons, since their mass would be different
+# Using sp_id2 because it has more complete mass measurments than sp_id
 
-##****WARNING**** AS OF THIS MORNING, MISSING SOME DRY MASSES FOR SEEDLINGS, ESPECIALLY TRAOHI. LOTS OF MASSES MISSING FOR LEAVES AND ROOTS, TOO
-## Update: These data have been entered, need to look on google drive to get the most uptodate version
+# fOR the first few trials, two pixel points were selected in the software to calculate super cooling. The code below averages the readings from those two points
+p <- sp_id2 %>% 
+  select(-Trial_order, -position, -Date_Weighted, -Initials, -Notes, -old_Tissue) %>% 
+  mutate(Plate_Num = as.numeric(Plate_Num)) %>% 
+  filter(`Experiment Type` == "Seedling Freeze Trial") %>% 
+  group_by(Date_Froze, Trial_num, Species, Species_Rep, Tissue, Tissue_Rep, Dry_Mass_mg) %>% 
+  filter(!duplicated(Plate_Num))
+
+# merge video id onto the species information sheet
+j <- left_join(p, date, by = c("Date_Froze" = "Trial_date", "Trial_num" = "Trial_num"))
+
+# Merge species id to supercooling by mergeing by video id and plate position. Also correcting spelling errors and grouping cotyledons with seedlings
+coldtol$sample <- as.numeric(coldtol$sample)
+cold_all_b <- full_join(coldtol, j, by = c("video" = "File_name", "sample" = "Plate_Num")) %>% 
+  mutate(Species = plyr::mapvalues(Species, from = c("PPREALB", "SYMPOBL", "ALLACER"), to = c("PREALB", "SYMOBL", "ALLCER"))) %>% 
+  filter(Species != "empty", !is.na(Species)) %>% 
+  mutate(Tissue_combined = plyr::mapvalues(Tissue, from = c("Seedling", "Seedling ", "Cotyledon"), to = c("Seedling", "Seedling", "Seedling"))) %>% 
+  filter(Tissue_combined != "First_seedling_leaf") %>% 
+  mutate(Tissue_combined = factor(Tissue_combined, levels = c("Seedling", "Leaf", "Root")))
 
 size <- cold_all_short %>%
   filter(Tissue == "Seedling") # we don't want cotyledons so using "Tissue"
-  
 
-ggplot(data = size, #%>% filter(spp != "AQUCAN"), 
-       aes(x = Dry_Mass_mg, y = med_supercooling)) +
-  geom_point(aes(color = Species)) +
+dev.off() #cleaning R, just in case
+pdf("/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/seedling_ColdTol_vs_mass.pdf", width = 10, height = 5) #This saves the pdf
+
+## Mass doesn't seem to be tighly correlated with seedling cold tolerance
+ggplot(data = cold_all_b %>% filter(Tissue == "Seedling", Species !="ALLCER", Species != "LATVEN", Species != "LIACYL"), 
+       aes(x = Dry_Mass_mg, y = med_supercooling, color = Species)) +
+  geom_point() +
   xlab("Seedling Dry Mass (mg)") +
   ylab("Seedling cold tolerance (C)") +
   #geom_smooth(method = "auto") +
   xlim(0, 15) +
+  geom_smooth(method = "lm", se = FALSE) +
   facet_wrap(vars(Species)) +
   theme_classic()  
+dev.off()
 
 
-
-
-
+## date froze... code not really working
+ggplot(data = cold_all_b %>% filter(Tissue == "Seedling", Species !="ALLCER", Species != "LATVEN", Species != "LIACYL"), 
+       aes(x = factor(Date_Froze), y = med_supercooling, color = Species)) +
+  geom_boxplot() +
+  xlab("Seedling Dry Mass (mg)") +
+  ylab("Seedling cold tolerance (C)") +
+  #geom_smooth(method = "auto") +
+  xlim(0, 15) +
+  geom_smooth(method = "lm", se = FALSE) +
+  #facet_wrap(vars(Species)) +
+  theme_classic()  
 
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
 # Question 5: does age of the seedling matter?
