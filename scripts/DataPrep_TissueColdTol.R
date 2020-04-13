@@ -287,6 +287,17 @@ timing_sum <- timing %>%
   summarise(cold = mean(med_supercooling, na.rm = TRUE), 
             sprout = mean(sprouttime, na.rm = TRUE))
 
+
+
+ggplot(data = timing_sum %>% filter(spp != "AQUCAN"),
+       aes(x = sprout, y = cold))+
+  geom_point() +
+  ylim(-20, -7) +
+  xlim(3, 20) +
+  geom_smooth(method = "lm") +
+  theme_classic ()
+
+
 ## A box plot that shows variation along both yand x axes would be good.
 ggplot(data = timing_sum %>% filter(spp != "AQUCAN"),
        aes(x = sprout, y = cold))+
@@ -372,7 +383,7 @@ size <- cold_all_short %>%
   filter(Tissue == "Seedling") # we don't want cotyledons so using "Tissue"
 
 dev.off() #cleaning R, just in case
-pdf("/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/seedling_ColdTol_vs_mass.pdf", width = 10, height = 5) #This saves the pdf
+#pdf("/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/seedling_ColdTol_vs_mass.pdf", width = 10, height = 5) #This saves the pdf
 
 ## Mass doesn't seem to be tighly correlated with seedling cold tolerance
 ggplot(data = cold_all_b %>% filter(Tissue == "Seedling", Species !="ALLCER", Species != "LATVEN", Species != "LIACYL"), 
@@ -383,9 +394,9 @@ ggplot(data = cold_all_b %>% filter(Tissue == "Seedling", Species !="ALLCER", Sp
   #geom_smooth(method = "auto") +
   xlim(0, 15) +
   geom_smooth(method = "lm", se = FALSE) +
-  facet_wrap(vars(Species)) +
+  facet_wrap(vars(Species), scales = "free_x") +
   theme_classic()  
-dev.off()
+#dev.off()
 
 
 ## date froze... code not really working
