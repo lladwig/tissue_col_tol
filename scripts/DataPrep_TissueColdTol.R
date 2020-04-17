@@ -255,6 +255,76 @@ k <- do.call(rbind.data.frame, posthoc) %>% #turns it into a dataframe
   
 
 
+#~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
+# Question 1.5: Is cold tolerance related to flowering phenology?
+#~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
+#grouping species by flowering phenology (spring or summer). I know there's a tydiverse way of doing it...
+cold_all_short$season <- 'flower' #making new column
+#assigning seasonaallity to each spp
+cold_all_short[cold_all_short['Species'] == 'SYMNOV', 'season'] = 'summer'
+cold_all_short[cold_all_short['Species'] == 'HELHEL', 'season'] = 'spring'
+cold_all_short[cold_all_short['Species'] == 'SYMPIL', 'season'] = 'summer'
+cold_all_short[cold_all_short['Species'] == 'DESILL', 'season'] = 'summer'
+cold_all_short[cold_all_short['Species'] == 'PREALB', 'season'] = 'summer'
+cold_all_short[cold_all_short['Species'] == 'SYMOBL', 'season'] = 'summer'
+cold_all_short[cold_all_short['Species'] == 'OXAVIO', 'season'] = 'spring'
+cold_all_short[cold_all_short['Species'] == 'ASCSYR', 'season'] = 'spring'
+cold_all_short[cold_all_short['Species'] == 'SOLGRA', 'season'] = 'summer'
+cold_all_short[cold_all_short['Species'] == 'RATPIN', 'season'] = 'spring'
+cold_all_short[cold_all_short['Species'] == 'LIACYL', 'season'] = 'summer'
+cold_all_short[cold_all_short['Species'] == 'ALLCER', 'season'] = 'spring'
+cold_all_short[cold_all_short['Species'] == 'CEAAME', 'season'] = 'spring'
+cold_all_short[cold_all_short['Species'] == 'LATVEN', 'season'] = 'spring'
+cold_all_short[cold_all_short['Species'] == 'TRAOHI', 'season'] = 'spring'
+cold_all_short[cold_all_short['Species'] == 'AQUCAN', 'season'] = 'spring'
+
+cold_all_short$flwr_order <- 'flower' #making new column
+#assigning seasonaallity to each spp
+cold_all_short[cold_all_short['Species'] == 'SYMNOV', 'flwr_order'] = 13
+cold_all_short[cold_all_short['Species'] == 'HELHEL', 'flwr_order'] = 6
+cold_all_short[cold_all_short['Species'] == 'SYMPIL', 'flwr_order'] = 14
+cold_all_short[cold_all_short['Species'] == 'DESILL', 'flwr_order'] = 10
+cold_all_short[cold_all_short['Species'] == 'PREALB', 'flwr_order'] = 12
+cold_all_short[cold_all_short['Species'] == 'SYMOBL', 'flwr_order'] = 15
+cold_all_short[cold_all_short['Species'] == 'OXAVIO', 'flwr_order'] = 2
+cold_all_short[cold_all_short['Species'] == 'ASCSYR', 'flwr_order'] = 9
+cold_all_short[cold_all_short['Species'] == 'SOLGRA', 'flwr_order'] = 11
+cold_all_short[cold_all_short['Species'] == 'RATPIN', 'flwr_order'] = 8
+cold_all_short[cold_all_short['Species'] == 'LIACYL', 'flwr_order'] = 10.5
+cold_all_short[cold_all_short['Species'] == 'ALLCER', 'flwr_order'] = 7
+cold_all_short[cold_all_short['Species'] == 'CEAAME', 'flwr_order'] = 4
+cold_all_short[cold_all_short['Species'] == 'LATVEN', 'flwr_order'] = 3
+cold_all_short[cold_all_short['Species'] == 'TRAOHI', 'flwr_order'] = 5
+cold_all_short[cold_all_short['Species'] == 'AQUCAN', 'flwr_order'] = 1
+
+cold_all_short$flwr_order <- as.numeric(as.character(cold_all_short$flwr_order)) #make it a number
+
+cold_all_short <- arrange(cold_all_short, flwr_order) #order dataset by flower timing
+
+ggplot(data = cold_all_short %>% filter(Tissue_combined == "Seedling"), 
+       aes(x = season, y = med_supercooling)) +
+  geom_boxplot(notch = FALSE, varwidth = FALSE, aes(fill = "season")) +
+  ylab("Cold tolerance (median freezing temp "*~degree~"C)") +
+  xlab("Flower Timing") +
+  theme_classic() 
+
+
+ggplot(data = cold_all_short %>% filter(tot_reps>4) 
+       %>% filter(Tissue_combined == "Seedling") 
+       %>% group_by(Species)
+       %>% mutate(medCool = median(med_supercooling)), 
+       aes(x = reorder(Species, flwr_order), y = med_supercooling)) +
+  geom_boxplot(aes(fill=medCool)) +
+  scale_fill_gradient(low = "blue", high = "yellow") +
+  ylab("Cold tolerance (median freezing temp "*~degree~"C)") +
+  xlab("Species") +
+  guides(fill=guide_legend(title="Tissue")) +
+  theme_classic()
+
+
+
+
+
 
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
 # Question 2: Is cold tolerance related to seedling emergence time?
