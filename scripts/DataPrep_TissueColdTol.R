@@ -2,19 +2,11 @@
 ## March 6, 2020
 ## LML
 
+# ORGANIZATION OF CODE: Currently code starts with cleaning data, Q1 analysis and graphing, Q2 analysis and graphing, and Q3 graphing and analysis. Sometime some data cleaning and organization is also before a particular analysis step
 
-## Notes from Jon:
-#This is a folder with a separate file fore each video. You'll have to combine them. I've been using this code if you have the output files in the "data" folder of your R project. You need tidyverse installed for this to work.
-
-#files <- list.files(path = "data", full.names = T, pattern = "output")
-#coldtol <- files %>% map_dfr(~read.csv(.))
-
-#The "sample" column refers to the well that the sample was in. For the supercooling value, I would use the med_supercooling, as that is the median and should be less sensitive to potentially weird measurements. I would filter out any sample that has a "n.sample" less than 5 or so and be a bit weary of samples that have an sc_var higher than 0.1 or so.
-
-#Jon
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
-
-#Load packges
+#    Load packges
+#~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
 #install.packages("TDPanalysis")
 library(tidyverse)
 #library(nlme)
@@ -25,9 +17,12 @@ library(TDPanalysis) #date to DOY conversion
 library(stringr)
 
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
-##              Importing data 
+##    Importing data 
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
 # Supercooling data. Importing and merging into one file
+## Notes from Jon:
+#This is a folder with a separate file fore each video. You'll have to combine them. I've been using this code if you have the output files in the "data" folder of your R project. You need tidyverse installed for this to work. The "sample" column refers to the well that the sample was in. For the supercooling value, I would use the med_supercooling, as that is the median and should be less sensitive to potentially weird measurements. I would filter out any sample that has a "n.sample" less than 5 or so and be a bit weary of samples that have an sc_var higher than 0.1 or so.
+
 files <- list.files(path = "data/tissue_test_results", full.names = T, pattern = "output")
 coldtol_orig <- files %>% map_dfr(~read.csv(.))
 
@@ -44,7 +39,7 @@ emergence <- read_csv("data/SeedlingEmergence_TissueColdTol.csv") # Seedling eme
 
 
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
-## Question 1: Does cold tolerance vary with regard to species or tissue type?         
+##  Data cleaning and organization
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
 
 # Supercooling data
@@ -110,11 +105,175 @@ reps <- cold_all_short %>%
 
 cold_all_short <- left_join(cold_all_short, reps)
 
-## ~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
-# GRAPHING
-## ~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
+# Flowering Phenology - adding this as a column
+#grouping species by flowering phenology (spring or summer). I know there's a tydiverse way of doing it...
+cold_all_short$season <- 'flower' #making new column
+#assigning seasonaallity to each spp
+cold_all_short[cold_all_short['Species'] == 'SYMNOV', 'season'] = 'summer'
+cold_all_short[cold_all_short['Species'] == 'HELHEL', 'season'] = 'spring'
+cold_all_short[cold_all_short['Species'] == 'SYMPIL', 'season'] = 'summer'
+cold_all_short[cold_all_short['Species'] == 'DESILL', 'season'] = 'summer'
+cold_all_short[cold_all_short['Species'] == 'PREALB', 'season'] = 'summer'
+cold_all_short[cold_all_short['Species'] == 'SYMOBL', 'season'] = 'summer'
+cold_all_short[cold_all_short['Species'] == 'OXAVIO', 'season'] = 'spring'
+cold_all_short[cold_all_short['Species'] == 'ASCSYR', 'season'] = 'spring'
+cold_all_short[cold_all_short['Species'] == 'SOLGRA', 'season'] = 'summer'
+cold_all_short[cold_all_short['Species'] == 'RATPIN', 'season'] = 'spring'
+cold_all_short[cold_all_short['Species'] == 'LIACYL', 'season'] = 'summer'
+cold_all_short[cold_all_short['Species'] == 'ALLCER', 'season'] = 'spring'
+cold_all_short[cold_all_short['Species'] == 'CEAAME', 'season'] = 'spring'
+cold_all_short[cold_all_short['Species'] == 'LATVEN', 'season'] = 'spring'
+cold_all_short[cold_all_short['Species'] == 'TRAOHI', 'season'] = 'spring'
+cold_all_short[cold_all_short['Species'] == 'AQUCAN', 'season'] = 'spring'
 
-## Unhash these next two lines when you want to save a graph. Possibly change the name if you don't want to overwrite the last one
+cold_all_short$flwr_order <- 'flower' #making new column
+#assigning seasonaallity to each spp
+cold_all_short[cold_all_short['Species'] == 'SYMNOV', 'flwr_order'] = 13
+cold_all_short[cold_all_short['Species'] == 'HELHEL', 'flwr_order'] = 6
+cold_all_short[cold_all_short['Species'] == 'SYMPIL', 'flwr_order'] = 14
+cold_all_short[cold_all_short['Species'] == 'DESILL', 'flwr_order'] = 10
+cold_all_short[cold_all_short['Species'] == 'PREALB', 'flwr_order'] = 12
+cold_all_short[cold_all_short['Species'] == 'SYMOBL', 'flwr_order'] = 15
+cold_all_short[cold_all_short['Species'] == 'OXAVIO', 'flwr_order'] = 2
+cold_all_short[cold_all_short['Species'] == 'ASCSYR', 'flwr_order'] = 9
+cold_all_short[cold_all_short['Species'] == 'SOLGRA', 'flwr_order'] = 11
+cold_all_short[cold_all_short['Species'] == 'RATPIN', 'flwr_order'] = 8
+cold_all_short[cold_all_short['Species'] == 'LIACYL', 'flwr_order'] = 10.5
+cold_all_short[cold_all_short['Species'] == 'ALLCER', 'flwr_order'] = 7
+cold_all_short[cold_all_short['Species'] == 'CEAAME', 'flwr_order'] = 4
+cold_all_short[cold_all_short['Species'] == 'LATVEN', 'flwr_order'] = 3
+cold_all_short[cold_all_short['Species'] == 'TRAOHI', 'flwr_order'] = 5
+cold_all_short[cold_all_short['Species'] == 'AQUCAN', 'flwr_order'] = 1
+
+cold_all_short$flwr_order <- as.numeric(as.character(cold_all_short$flwr_order)) #make it a number
+
+cold_all_short <- arrange(cold_all_short, flwr_order) #order dataset by flower timing
+
+
+## *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
+#   Data analysis and graphing for each research question
+## *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
+
+
+## *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
+# Question 1: Does tissue cold tolerance relate to flowering phenology
+## *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
+########### Data Analysis
+# T test comparing leaf cold hardiness of spring and summer blooming plants.
+# I do this t-test because i can't get season to fit nicely in the anova code
+ttest_phen <- t.test(med_supercooling ~ season, 
+           data = cold_all_short 
+           %>% filter(tot_reps>4) 
+           %>% filter(Tissue_combined == "Seedling")
+           )
+print(ttest_phen)
+
+
+## Not quite working b/c it drops season from anova table.....
+mod_phen  <- lm(med_supercooling ~
+                   Species +
+                   video +
+                   season,
+                 data = cold_all_short 
+                   %>% filter(tot_reps>4) 
+                   %>% filter(Tissue_combined == "Seedling"))
+print(mod_phen)
+summary(mod_phen)
+anova(mod_phen)
+
+## Where are the differences among species?
+# sorting through this output to figure out which species are different to put letters above species on teh graph seems like a hot mess. There has to be a better way to do this in R but I don't know how 
+post_phen <- TukeyHSD(aov(med_supercooling ~
+                           Species, 
+                         data = cold_all_short%>% filter(tot_reps>4)
+                         %>% filter(Tissue_combined == "Leaf")))
+print(post_phen)
+
+########## Graphing
+#### Flowering phenology ~*~*~*~*~*~
+## Figure 3a: spring vs summer supercooling
+ggplot(data = cold_all_short %>% filter(Tissue_combined == "Seedling"), 
+       aes(x = season, y = med_supercooling)) +
+  geom_boxplot(notch = FALSE, varwidth = FALSE, aes(fill = "season")) +
+  ylab("Cold tolerance (median freezing temp "*~degree~"C)") +
+  xlab("Flower Timing") +
+  theme_classic() 
+
+# Figure 3b: species supercooling organized in flwoering order
+# coloring is all messed up
+ggplot(data = cold_all_short %>% filter(tot_reps>4) 
+       %>% filter(Tissue_combined == "Seedling") 
+       %>% group_by(Species)
+       %>% mutate(medCool = median(med_supercooling)), 
+       aes(x = reorder(Species, flwr_order), y = med_supercooling)) +
+  geom_boxplot(aes(fill=medCool)) +
+  scale_fill_gradient(low = "blue", high = "yellow") +
+  ylab("Cold tolerance (median freezing temp "*~degree~"C)") +
+  xlab("Species") +
+  guides(fill=guide_legend(title="Tissue")) +
+  theme_classic()
+
+
+## *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
+# Question 2: Does cold tolerance differ with species, tissue, and the interaction? 
+## *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
+########### Data Analysis
+# Does cold tolerance differ with species, tissue, and the interaction? Video was also included to account for the variation of different runs. Video could (should?) be a random effect but in this model it is fixed
+mod_tiss  <- lm (med_supercooling ~
+                   Species +
+                   video +
+                   Tissue_combined +
+                   Species:Tissue_combined,
+                 data = cold_all_short %>% filter(tot_reps>4))
+
+print(mod_tiss)
+summary(mod_tiss)
+anova(mod_tiss)
+
+#This code gives me believable differences but I'm not sure if it's the correct way to do it becaues it only looks at Species:Tissue comparisons. Those are the only comparissons I'm interested in anyways, but it feels wierd not to have the other factors in the model. 
+posthoc2 <- TukeyHSD(aov(med_supercooling ~
+                           Species:Tissue_combined, 
+                         data = cold_all_short%>% filter(tot_reps>4)))
+print(posthoc2)
+
+# adjusting the data a bit so it's easier to look at the comparisions I want  
+m <- do.call(rbind.data.frame, posthoc2) %>% #turns it into a dataframe
+  mutate(comp = rownames(.)) %>%
+  separate(comp, c("first", "second"), sep = "\\.") %>% # split by period
+  separate(second, c("spp1", "tiss1", "spp2", "tiss2"), sep = "([\\:\\-])") %>%
+  mutate(same_spp = if_else(spp1 == spp2, 1, 0)) %>% #finding species matches
+  filter(same_spp == 1)
+
+#saving posthoc results so I can look at them later
+write_csv(m, "/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/tissue_spp_posthoc.csv")
+
+## This is my first try at the posthoc tests to see where the differences lie. It doesn't seem to be working here and I'm not sure why. One difference between this and the test above is that this uses the model object aov while the model above was a lm - not sure if that matters too much
+posthoc <- TukeyHSD(aov(med_supercooling ~
+                          video +
+                          Species +
+                          Tissue_combined +
+                          Species:Tissue_combined, 
+                        data = cold_all_short%>% filter(tot_reps>4)))
+print(posthoc)
+
+#The results above are too much to take in at once. This cleans and organizes the results so only looking at differences between tissues of the same species
+## NOTE: If the number or reps is changed then make sure to check the indexing in the code below 
+## These results don't make much scence. From what I understand, there are only sig diffs with DESILL leaf-seedling, HELHEL leaf-seedling and DESIL root-leaf, but when looking at the graph it doesn't look right
+k <- do.call(rbind.data.frame, posthoc) %>% #turns it into a dataframe
+  mutate(comp = rownames(.)) %>%
+  slice(-c(1:253)) %>% #tossing all video comparisions
+  slice(-c(1:108)) %>% #now taking out all spp comparisions and tissue
+  separate(comp, c("first", "second"), sep = "\\.") %>% # split by period
+  separate(second, c("spp1", "tiss1", "spp2", "tiss2"), sep = "([\\:\\-])") %>%
+  mutate(same_spp = if_else(spp1 == spp2, 1, 0)) %>% #finding species matches
+  filter(same_spp == 1)
+
+
+
+############# Graphing
+##### Tissue type/age and spp ~*~*~*~*~*~*~
+
+## If you want to save the graph below, unhash these next two lines of code. Possibly change the name if you don't want to overwrite the last one
 #dev.off() #cleaning R, just in case
 #pdf("/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/ColdTol_byspp_wletters.pdf", width = 15, height = 7) #This saves the pdf
 
@@ -200,137 +359,13 @@ ggplot(data = cold_all_short %>% filter(Tissue == "Seedling"),
   geom_smooth(method = "lm", se = FALSE) +
   theme_classic()
 
-## *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
-# Statistical test
-## *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
-# Does cold tolerance differ with species, tissue, and the interaction? Video was also included to account for the variation of different runs. Video could (should?) be a random effect but in this model it is fixed
-mod_tiss  <- lm (med_supercooling ~
-        Species +
-          video +
-          Tissue_combined +
-          Species:Tissue_combined,
-        data = cold_all_short %>% filter(tot_reps>4))
-        
-print(mod_tiss)
-summary(mod_tiss)
-anova(mod_tiss)
-
-#This code gives me believable differences but I'm not sure if it's the correct way to do it becaues it only looks at Species:Tissue comparisons. Those are the only comparissons I'm interested in anyways, but it feels wierd not to have the other factors in the model. 
-posthoc2 <- TukeyHSD(aov(med_supercooling ~
-                           Species:Tissue_combined, 
-                         data = cold_all_short%>% filter(tot_reps>4)))
-print(posthoc2)
-
-# adjusting the data a bit so it's easier to look at the comparisions I want  
-m <- do.call(rbind.data.frame, posthoc2) %>% #turns it into a dataframe
-  mutate(comp = rownames(.)) %>%
-  separate(comp, c("first", "second"), sep = "\\.") %>% # split by period
-  separate(second, c("spp1", "tiss1", "spp2", "tiss2"), sep = "([\\:\\-])") %>%
-  mutate(same_spp = if_else(spp1 == spp2, 1, 0)) %>% #finding species matches
-  filter(same_spp == 1)
-
-#saving posthoc results so I can look at them later
-write_csv(m, "/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/tissue_spp_posthoc.csv")
-
-## This is my first try at the posthoc tests to see where the differences lie. It doesn't seem to be working here and I'm not sure why. One difference between this and the test above is that this uses the model object aov while the model above was a lm - not sure if that matters too much
-posthoc <- TukeyHSD(aov(med_supercooling ~
-                          video +
-                          Species +
-                          Tissue_combined +
-                          Species:Tissue_combined, 
-                        data = cold_all_short%>% filter(tot_reps>4)))
-print(posthoc)
-
-#The results above are too much to take in at once. This cleans and organizes the results so only looking at differences between tissues of the same species
-## NOTE: If the number or reps is changed then make sure to check the indexing in the code below 
-## These results don't make much scence. From what I understand, there are only sig diffs with DESILL leaf-seedling, HELHEL leaf-seedling and DESIL root-leaf, but when looking at the graph it doesn't look right
-k <- do.call(rbind.data.frame, posthoc) %>% #turns it into a dataframe
-  mutate(comp = rownames(.)) %>%
-  slice(-c(1:253)) %>% #tossing all video comparisions
-  slice(-c(1:108)) %>% #now taking out all spp comparisions and tissue
-  separate(comp, c("first", "second"), sep = "\\.") %>% # split by period
-  separate(second, c("spp1", "tiss1", "spp2", "tiss2"), sep = "([\\:\\-])") %>%
-  mutate(same_spp = if_else(spp1 == spp2, 1, 0)) %>% #finding species matches
-  filter(same_spp == 1)
-  
-
-
-#~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
-# Question 1.5: Is cold tolerance related to flowering phenology?
-#~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
-#grouping species by flowering phenology (spring or summer). I know there's a tydiverse way of doing it...
-cold_all_short$season <- 'flower' #making new column
-#assigning seasonaallity to each spp
-cold_all_short[cold_all_short['Species'] == 'SYMNOV', 'season'] = 'summer'
-cold_all_short[cold_all_short['Species'] == 'HELHEL', 'season'] = 'spring'
-cold_all_short[cold_all_short['Species'] == 'SYMPIL', 'season'] = 'summer'
-cold_all_short[cold_all_short['Species'] == 'DESILL', 'season'] = 'summer'
-cold_all_short[cold_all_short['Species'] == 'PREALB', 'season'] = 'summer'
-cold_all_short[cold_all_short['Species'] == 'SYMOBL', 'season'] = 'summer'
-cold_all_short[cold_all_short['Species'] == 'OXAVIO', 'season'] = 'spring'
-cold_all_short[cold_all_short['Species'] == 'ASCSYR', 'season'] = 'spring'
-cold_all_short[cold_all_short['Species'] == 'SOLGRA', 'season'] = 'summer'
-cold_all_short[cold_all_short['Species'] == 'RATPIN', 'season'] = 'spring'
-cold_all_short[cold_all_short['Species'] == 'LIACYL', 'season'] = 'summer'
-cold_all_short[cold_all_short['Species'] == 'ALLCER', 'season'] = 'spring'
-cold_all_short[cold_all_short['Species'] == 'CEAAME', 'season'] = 'spring'
-cold_all_short[cold_all_short['Species'] == 'LATVEN', 'season'] = 'spring'
-cold_all_short[cold_all_short['Species'] == 'TRAOHI', 'season'] = 'spring'
-cold_all_short[cold_all_short['Species'] == 'AQUCAN', 'season'] = 'spring'
-
-cold_all_short$flwr_order <- 'flower' #making new column
-#assigning seasonaallity to each spp
-cold_all_short[cold_all_short['Species'] == 'SYMNOV', 'flwr_order'] = 13
-cold_all_short[cold_all_short['Species'] == 'HELHEL', 'flwr_order'] = 6
-cold_all_short[cold_all_short['Species'] == 'SYMPIL', 'flwr_order'] = 14
-cold_all_short[cold_all_short['Species'] == 'DESILL', 'flwr_order'] = 10
-cold_all_short[cold_all_short['Species'] == 'PREALB', 'flwr_order'] = 12
-cold_all_short[cold_all_short['Species'] == 'SYMOBL', 'flwr_order'] = 15
-cold_all_short[cold_all_short['Species'] == 'OXAVIO', 'flwr_order'] = 2
-cold_all_short[cold_all_short['Species'] == 'ASCSYR', 'flwr_order'] = 9
-cold_all_short[cold_all_short['Species'] == 'SOLGRA', 'flwr_order'] = 11
-cold_all_short[cold_all_short['Species'] == 'RATPIN', 'flwr_order'] = 8
-cold_all_short[cold_all_short['Species'] == 'LIACYL', 'flwr_order'] = 10.5
-cold_all_short[cold_all_short['Species'] == 'ALLCER', 'flwr_order'] = 7
-cold_all_short[cold_all_short['Species'] == 'CEAAME', 'flwr_order'] = 4
-cold_all_short[cold_all_short['Species'] == 'LATVEN', 'flwr_order'] = 3
-cold_all_short[cold_all_short['Species'] == 'TRAOHI', 'flwr_order'] = 5
-cold_all_short[cold_all_short['Species'] == 'AQUCAN', 'flwr_order'] = 1
-
-cold_all_short$flwr_order <- as.numeric(as.character(cold_all_short$flwr_order)) #make it a number
-
-cold_all_short <- arrange(cold_all_short, flwr_order) #order dataset by flower timing
-
-ggplot(data = cold_all_short %>% filter(Tissue_combined == "Seedling"), 
-       aes(x = season, y = med_supercooling)) +
-  geom_boxplot(notch = FALSE, varwidth = FALSE, aes(fill = "season")) +
-  ylab("Cold tolerance (median freezing temp "*~degree~"C)") +
-  xlab("Flower Timing") +
-  theme_classic() 
-
-
-ggplot(data = cold_all_short %>% filter(tot_reps>4) 
-       %>% filter(Tissue_combined == "Seedling") 
-       %>% group_by(Species)
-       %>% mutate(medCool = median(med_supercooling)), 
-       aes(x = reorder(Species, flwr_order), y = med_supercooling)) +
-  geom_boxplot(aes(fill=medCool)) +
-  scale_fill_gradient(low = "blue", high = "yellow") +
-  ylab("Cold tolerance (median freezing temp "*~degree~"C)") +
-  xlab("Species") +
-  guides(fill=guide_legend(title="Tissue")) +
-  theme_classic()
-
-
-
 
 
 
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
-# Question 2: Is cold tolerance related to seedling emergence time?
+# Question 3: Is cold tolerance related to seedling emergence time?
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
-
-# Prepping emergence data for merge
+#### Prepping emergence data for merge
 emerge <- emergence %>%
   filter(!is.na(emergence_date)) %>% #take out reps that didn't sprout
   separate(emergence_date, c("year", "month", "day"), sep = "\\-") %>% # split by hash
@@ -357,8 +392,25 @@ timing_sum <- timing %>%
   summarise(cold = mean(med_supercooling, na.rm = TRUE), 
             sprout = mean(sprouttime, na.rm = TRUE))
 
+####### Data Analysis
+q2_all_mod <-lm(med_supercooling ~ sprouttime + spp + video, data = timing %>% filter(spp != "AQUCAN"))
+
+summary(q2_all_mod)
+anova(q2_all_mod)
+
+## Mean species values
+q2_mod <- lm(cold ~ sprout, data = timing_sum %>% filter(spp != "AQUCAN"))       
+q2_mod <- lm(cold ~ log(sprout), data = timing_sum)  
+print(q2_mod)
+summary(q2_mod)
+
+q2_cor <- cor(x = timing_sum$sprout, y = timing_sum$cold)
+print(q2_cor)
+summary(q2_cor)
 
 
+
+##### Graphing
 ggplot(data = timing_sum %>% filter(spp != "AQUCAN"),
        aes(x = sprout, y = cold))+
   geom_point() +
@@ -366,7 +418,6 @@ ggplot(data = timing_sum %>% filter(spp != "AQUCAN"),
   xlim(3, 20) +
   geom_smooth(method = "lm") +
   theme_classic ()
-
 
 ## A box plot that shows variation along both yand x axes would be good.
 ggplot(data = timing_sum %>% filter(spp != "AQUCAN"),
@@ -377,14 +428,6 @@ ggplot(data = timing_sum %>% filter(spp != "AQUCAN"),
   geom_smooth(method = "lm") +
   theme_classic ()
 
-q2_mod <- lm(cold ~ sprout, data = timing_sum %>% filter(spp != "AQUCAN"))       
-q2_mod <- lm(cold ~ log(sprout), data = timing_sum)  
-print(q2_mod)
-summary(q2_mod)
-
-q2_cor <- cor(x = timing_sum$sprout, y = timing_sum$cold)
-print(q2_cor)
-summary(q2_cor)
 
 # graphing to see how time to emergence relates to cold tolerance of seedligns
 # ISSUES: it'g graphing species that don't have data...
@@ -402,24 +445,22 @@ ggplot(data = timing, #%>% filter(spp != "AQUCAN"),
   geom_smooth(method = "lm") +
   theme_classic()  
 
-#*~*~*~*~*~*~*~*~*~*~*~
-# Statistical analysis
-#~*~*~*~*~*~*~*~*~*~*~
 
-q2_all_mod <-lm(med_supercooling ~ sprouttime + spp + video, data = timing %>% filter(spp != "AQUCAN"))
 
-summary(q2_all_mod)
-anova(q2_all_mod)
+
+
 
 
 
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
-# Question 3: Sources of variation
+# EXTRA QUESTIONS EXTRA QUESTIONS EXTRA QUESTIONS
+#~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*#
+
+
+#~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
+# Question 3.5: Sources of variation
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
 #Seedlings appear to have a lot more varience in cold tolerance than leaves and roots. Is this a true pattern or is it related to sample size (a lot more seedligns were measured)
-
-
-
 
 
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
