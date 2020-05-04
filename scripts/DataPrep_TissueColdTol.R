@@ -171,23 +171,49 @@ print(ttest_phen)
 
 ## Not quite working b/c it drops season from anova table.....
 mod_phen  <- lm(med_supercooling ~
-                   Species +
-                   video +
-                   season,
-                 data = cold_all_short 
-                   %>% filter(tot_reps>4) 
-                   %>% filter(Tissue_combined == "Seedling"))
+                  season +
+                  Species +
+                  video,
+                 data = cold_all_short %>% 
+                   filter(tot_reps>4) %>% 
+                   filter(Tissue_combined == "Seedling") %>% 
+                   mutate(season = as.factor(season)) %>% 
+                  filter(!is.na(med_supercooling)))
 print(mod_phen)
 summary(mod_phen)
 anova(mod_phen)
+
+## analysis by flower order rather than season
+mod_order  <- lm(med_supercooling ~
+                  flwr_order +
+                  Species +
+                  video,
+                data = cold_all_short %>% 
+                  filter(tot_reps>4) %>% 
+                  filter(Tissue_combined == "Seedling") %>% 
+                  mutate(season = as.factor(season)) %>% 
+                  filter(!is.na(med_supercooling)))
+print(mod_order)
+summary(mod_order)
+anova(mod_order)
+
 
 ## Where are the differences among species?
 # sorting through this output to figure out which species are different to put letters above species on teh graph seems like a hot mess. There has to be a better way to do this in R but I don't know how 
 post_phen <- TukeyHSD(aov(med_supercooling ~
                            Species, 
-                         data = cold_all_short%>% filter(tot_reps>4)
-                         %>% filter(Tissue_combined == "Leaf")))
+                         data = cold_all_short%>% filter(tot_reps>4) %>% filter(Tissue_combined == "Leaf")))
 print(post_phen)
+
+## better posthoc test
+install.packages("agricolae")
+library(agricolae)
+
+post_phen <- HSD.test(aov(med_supercooling ~
+                            Species, 
+                          data = cold_all_short%>% filter(tot_reps>4) %>% filter(Tissue_combined == "Leaf")), trt = "Species")
+post_phen
+
 
 ########## Graphing
 #### Flowering phenology ~*~*~*~*~*~
