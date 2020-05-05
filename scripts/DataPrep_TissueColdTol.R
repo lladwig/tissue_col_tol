@@ -126,7 +126,7 @@ cold_all_short[cold_all_short['Species'] == 'LATVEN', 'season'] = 'spring'
 cold_all_short[cold_all_short['Species'] == 'TRAOHI', 'season'] = 'spring'
 cold_all_short[cold_all_short['Species'] == 'AQUCAN', 'season'] = 'spring'
 
-cold_all_short$flwr_order <- 'flower' #making new column
+cold_all_short$flwr_order <- 1 #making new column
 #assigning seasonaallity to each spp
 cold_all_short[cold_all_short['Species'] == 'SYMNOV', 'flwr_order'] = 13
 cold_all_short[cold_all_short['Species'] == 'HELHEL', 'flwr_order'] = 6
@@ -218,26 +218,35 @@ post_phen
 ########## Graphing
 #### Flowering phenology ~*~*~*~*~*~
 ## Figure 3a: spring vs summer supercooling
-ggplot(data = cold_all_short %>% filter(Tissue_combined == "Seedling"), 
-       aes(x = season, y = med_supercooling)) +
-  geom_boxplot(notch = FALSE, varwidth = FALSE, aes(fill = "season")) +
+spring_summer <- ggplot(data = cold_all_short %>% filter(Tissue_combined == "Seedling") %>% mutate(season = plyr::mapvalues(season, from = c("spring", "summer"), to = c("Spring", "Summer"))), 
+       aes(x = season, y = med_supercooling, fill = season)) +
+  geom_boxplot(notch = FALSE, varwidth = FALSE) +
   ylab("Cold tolerance (median freezing temp "*~degree~"C)") +
-  xlab("Flower Timing") +
-  theme_classic() 
+  xlab("Flower Season") +
+  theme_classic() +
+  scale_fill_manual(values = c("pink", "lightgreen"), name = NULL) +
+  theme(legend.position = "none",
+        text = element_text(size = 15))
 
 # Figure 3b: species supercooling organized in flwoering order
 # coloring is all messed up
-ggplot(data = cold_all_short %>% filter(tot_reps>4) 
-       %>% filter(Tissue_combined == "Seedling") 
-       %>% group_by(Species)
-       %>% mutate(medCool = median(med_supercooling)), 
-       aes(x = reorder(Species, flwr_order), y = med_supercooling)) +
-  geom_boxplot(aes(fill=medCool)) +
-  scale_fill_gradient(low = "blue", high = "yellow") +
-  ylab("Cold tolerance (median freezing temp "*~degree~"C)") +
-  xlab("Species") +
-  guides(fill=guide_legend(title="Tissue")) +
-  theme_classic()
+flwr_rank <- ggplot(data = cold_all_short %>% 
+         filter(tot_reps>4) %>%
+         filter(Tissue_combined == "Seedling") , 
+       aes(x = flwr_order, y = med_supercooling)) +
+  geom_jitter(aes(color = reorder(Species, flwr_order)), width = 0.25) +
+  stat_smooth(method = "lm") +
+  ylab(NULL) +
+  xlab("Flower order rank") +
+  theme_classic() +
+  theme(text = element_text(size = 15)) +
+  guides(color=guide_legend(title="Species"))
+
+#this is a nice package for making ggplots look better
+#install.packages("ggpubr")
+library(ggpubr)
+
+ggarrange(spring_summer, flwr_rank, ncol = 2, widths = c(1, 3))
 
 
 ## *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
