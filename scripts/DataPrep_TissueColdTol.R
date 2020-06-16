@@ -145,7 +145,26 @@ cold_all_short[cold_all_short['Species'] == 'LATVEN', 'flwr_order'] = 3
 cold_all_short[cold_all_short['Species'] == 'TRAOHI', 'flwr_order'] = 5
 cold_all_short[cold_all_short['Species'] == 'AQUCAN', 'flwr_order'] = 1
 
+cold_all_short$first_flwr <- 1 
+cold_all_short[cold_all_short['Species'] == 'SYMNOV', 'first_flwr'] = 8
+cold_all_short[cold_all_short['Species'] == 'HELHEL', 'first_flwr'] = 6
+cold_all_short[cold_all_short['Species'] == 'SYMPIL', 'first_flwr'] = 8
+cold_all_short[cold_all_short['Species'] == 'DESILL', 'first_flwr'] = 7
+cold_all_short[cold_all_short['Species'] == 'PREALB', 'first_flwr'] = 8
+cold_all_short[cold_all_short['Species'] == 'SYMOBL', 'first_flwr'] = 8
+cold_all_short[cold_all_short['Species'] == 'OXAVIO', 'first_flwr'] = 5
+cold_all_short[cold_all_short['Species'] == 'ASCSYR', 'first_flwr'] = 6
+cold_all_short[cold_all_short['Species'] == 'SOLGRA', 'first_flwr'] = 7
+cold_all_short[cold_all_short['Species'] == 'RATPIN', 'first_flwr'] = 6
+cold_all_short[cold_all_short['Species'] == 'LIACYL', 'first_flwr'] = 7
+cold_all_short[cold_all_short['Species'] == 'ALLCER', 'first_flwr'] = 6
+cold_all_short[cold_all_short['Species'] == 'CEAAME', 'first_flwr'] = 5
+cold_all_short[cold_all_short['Species'] == 'LATVEN', 'first_flwr'] = 5
+cold_all_short[cold_all_short['Species'] == 'TRAOHI', 'first_flwr'] = 5
+cold_all_short[cold_all_short['Species'] == 'AQUCAN', 'first_flwr'] = 4
+
 cold_all_short$flwr_order <- as.numeric(as.character(cold_all_short$flwr_order)) #make it a number
+cold_all_short$first_flwr <- as.numeric(as.character(cold_all_short$first_flwr)) 
 
 cold_all_short <- arrange(cold_all_short, flwr_order) #order dataset by flower timing
 
@@ -183,6 +202,21 @@ print(mod_phen)
 summary(mod_phen)
 anova(mod_phen)
 
+library(lmerTest)
+library(car)
+mod_phen  <- lmer(med_supercooling ~
+                  season +
+                  (1|Species) +
+                  (1|video)  ,
+                data = cold_all_short %>% 
+                  filter(tot_reps>4) %>% 
+                  filter(Tissue_combined == "Seedling") %>% 
+                  mutate(season = as.factor(season)) %>% 
+                  filter(!is.na(med_supercooling)))
+summary(mod_phen)
+anova(mod_phen)
+Anova(mod_phen)
+
 ## analysis by flower order rather than season
 mod_order  <- lm(med_supercooling ~
                   flwr_order +
@@ -196,6 +230,19 @@ mod_order  <- lm(med_supercooling ~
 print(mod_order)
 summary(mod_order)
 anova(mod_order)
+
+
+mod_first  <- lmer(med_supercooling ~
+                   first_flwr +
+                   (1|Species) +
+                   (1|video),
+                 data = cold_all_short %>% 
+                   filter(tot_reps>4) %>% 
+                   filter(Tissue_combined == "Seedling") %>% 
+                   mutate(season = as.factor(season)) %>% 
+                   filter(!is.na(med_supercooling)))
+summary(mod_first)
+anova(mod_first)
 
 
 ## Where are the differences among species?
@@ -233,14 +280,26 @@ spring_summer <- ggplot(data = cold_all_short %>% filter(Tissue_combined == "See
 flwr_rank <- ggplot(data = cold_all_short %>% 
          filter(tot_reps>4) %>%
          filter(Tissue_combined == "Seedling") , 
-       aes(x = flwr_order, y = med_supercooling)) +
-  geom_jitter(aes(color = reorder(Species, flwr_order)), width = 0.25) +
+       aes(x = first_flwr, y = med_supercooling)) +
+  geom_jitter(width = 0.2) +
+  stat_smooth(method = "lm") +
+  ylab(NULL) +
+  xlab("Month of First Flower") +
+  theme_classic() +
+  theme(text = element_text(size = 15)) 
+
+
+flwr_rank_box <- ggplot(data = cold_all_short %>% 
+                      filter(tot_reps>4) %>%
+                      filter(Tissue_combined == "Seedling") , 
+                    aes(x = first_flwr, y = med_supercooling)) +
+  geom_boxplot(aes(fill = reorder(Species, flwr_order)), width = 0.25) +
   stat_smooth(method = "lm") +
   ylab(NULL) +
   xlab("Flower order rank") +
   theme_classic() +
   theme(text = element_text(size = 15)) +
-  guides(color=guide_legend(title="Species"))
+  guides(fill=guide_legend(title="Species"))
 
 #this is a nice package for making ggplots look better
 #install.packages("ggpubr")
