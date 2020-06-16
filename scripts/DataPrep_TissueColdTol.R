@@ -168,6 +168,9 @@ cold_all_short$first_flwr <- as.numeric(as.character(cold_all_short$first_flwr))
 
 cold_all_short <- arrange(cold_all_short, flwr_order) #order dataset by flower timing
 
+cold_all_short <- cold_all_short %>% 
+  mutate(Species_Rep1 = Species_Rep) %>% 
+  separate(Species_Rep1, into = c("ind_number", "planting_round"), sep = -1)
 
 ## *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
 #   Data analysis and graphing for each research question
@@ -202,12 +205,14 @@ print(mod_phen)
 summary(mod_phen)
 anova(mod_phen)
 
+#make the spring vs summer analysis a mixed model
 library(lmerTest)
 library(car)
 mod_phen  <- lmer(med_supercooling ~
                   season +
                   (1|Species) +
-                  (1|video)  ,
+                  (1|video) +
+                  (1|planting_round),
                 data = cold_all_short %>% 
                   filter(tot_reps>4) %>% 
                   filter(Tissue_combined == "Seedling") %>% 
@@ -231,11 +236,12 @@ print(mod_order)
 summary(mod_order)
 anova(mod_order)
 
-
+#make a mmixed model for first flower date analysis
 mod_first  <- lmer(med_supercooling ~
                    first_flwr +
                    (1|Species) +
-                   (1|video),
+                   (1|video) +
+                    (1|planting_round),
                  data = cold_all_short %>% 
                    filter(tot_reps>4) %>% 
                    filter(Tissue_combined == "Seedling") %>% 
@@ -313,16 +319,26 @@ ggarrange(spring_summer, flwr_rank, ncol = 2, widths = c(1, 3))
 ## *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
 ########### Data Analysis
 # Does cold tolerance differ with species, tissue, and the interaction? Video was also included to account for the variation of different runs. Video could (should?) be a random effect but in this model it is fixed
-mod_tiss  <- lm (med_supercooling ~
+
+# This model looks about right, but it does not have enough data to fit all of the effects that we want (it is missing one interaction coefficient).
+
+#This can be fixed if we cut the min reps to 3, rather than 5. Need to think about what is best for the number of reps that we need.
+mod_tiss  <- lmer(med_supercooling ~
                    Species +
-                   video +
+                   (1|video) +
+                    (1|planting_round/Species) +
                    Tissue_combined +
                    Species:Tissue_combined,
-                 data = cold_all_short %>% filter(tot_reps>4))
+                 data = cold_all_short %>% filter(tot_reps>2, Species != "AQUCAN", Species != "SYMOBL", Species != "LATVEN", Species != "LIACYL"))
+
 
 print(mod_tiss)
 summary(mod_tiss)
 anova(mod_tiss)
+
+library(lsmeans)
+emmeans(mod_tiss, pairwise~Tissue_combined|Species)
+
 
 #This code gives me believable differences but I'm not sure if it's the correct way to do it becaues it only looks at Species:Tissue comparisons. Those are the only comparissons I'm interested in anyways, but it feels wierd not to have the other factors in the model. 
 posthoc2 <- TukeyHSD(aov(med_supercooling ~
