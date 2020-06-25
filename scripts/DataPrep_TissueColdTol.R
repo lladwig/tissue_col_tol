@@ -15,6 +15,10 @@ library(lme4)
 #library(agricolae)
 library(TDPanalysis) #date to DOY conversion
 library(stringr)
+library(gridExtra)
+library(ggpubr) #this is a nice package for making ggplots look better
+library(scales) #to wrap text for ggplot lables
+library(lsmeans) # for posthoc tests
 
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
 ##    Importing data 
@@ -37,6 +41,9 @@ date <- read_csv("data/Video_tracking.csv") #link date to video name
 plant_date <- read_csv("data/PlantingDate_TissueColdTol.csv") # Planting date
 emergence <- read_csv("data/SeedlingEmergence_TissueColdTol.csv") # Seedling emergence
 
+
+## Species names for graphing purposes
+names <- read_csv("data/sppnames.csv")
 
 #~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*
 ##  Data cleaning and organization
@@ -145,7 +152,7 @@ cold_all_short[cold_all_short['Species'] == 'LATVEN', 'flwr_order'] = 3
 cold_all_short[cold_all_short['Species'] == 'TRAOHI', 'flwr_order'] = 5
 cold_all_short[cold_all_short['Species'] == 'AQUCAN', 'flwr_order'] = 1
 
-cold_all_short$first_flwr <- 1 
+cold_all_short$first_flwr <- 1 #Making an new column for first flower month
 cold_all_short[cold_all_short['Species'] == 'SYMNOV', 'first_flwr'] = 8
 cold_all_short[cold_all_short['Species'] == 'HELHEL', 'first_flwr'] = 6
 cold_all_short[cold_all_short['Species'] == 'SYMPIL', 'first_flwr'] = 8
@@ -182,28 +189,28 @@ cold_all_short <- cold_all_short %>%
 ## *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
 ########### Data Analysis
 # T test comparing leaf cold hardiness of spring and summer blooming plants.
-# I do this t-test because i can't get season to fit nicely in the anova code
-ttest_phen <- t.test(med_supercooling ~ season, 
-           data = cold_all_short 
-           %>% filter(tot_reps>4) 
-           %>% filter(Tissue_combined == "Seedling")
-           )
-print(ttest_phen)
+# I did this t-test because i can't get season to fit nicely in the anova code, but now we have that code working
+# ttest_phen <- t.test(med_supercooling ~ season, 
+#            data = cold_all_short 
+#            %>% filter(tot_reps>4) 
+#            %>% filter(Tissue_combined == "Seedling")
+#            )
+# print(ttest_phen)
 
 
-## Not quite working b/c it drops season from anova table.....
-mod_phen  <- lm(med_supercooling ~
-                  season +
-                  Species +
-                  video,
-                 data = cold_all_short %>% 
-                   filter(tot_reps>4) %>% 
-                   filter(Tissue_combined == "Seedling") %>% 
-                   mutate(season = as.factor(season)) %>% 
-                  filter(!is.na(med_supercooling)))
-print(mod_phen)
-summary(mod_phen)
-anova(mod_phen)
+## ANOVA that is not quite working b/c it drops season from anova table.....
+# mod_phen  <- lm(med_supercooling ~
+#                   season +
+#                   Species +
+#                   video,
+#                  data = cold_all_short %>% 
+#                    filter(tot_reps>4) %>% 
+#                    filter(Tissue_combined == "Seedling") %>% 
+#                    mutate(season = as.factor(season)) %>% 
+#                   filter(!is.na(med_supercooling)))
+# print(mod_phen)
+# summary(mod_phen)
+# anova(mod_phen)
 
 #make the spring vs summer analysis a mixed model
 library(lmerTest)
@@ -223,20 +230,22 @@ anova(mod_phen)
 Anova(mod_phen)
 
 ## analysis by flower order rather than season
-mod_order  <- lm(med_supercooling ~
-                  flwr_order +
-                  Species +
-                  video,
-                data = cold_all_short %>% 
-                  filter(tot_reps>4) %>% 
-                  filter(Tissue_combined == "Seedling") %>% 
-                  mutate(season = as.factor(season)) %>% 
-                  filter(!is.na(med_supercooling)))
-print(mod_order)
-summary(mod_order)
-anova(mod_order)
+## Ultimately we decided not to use flower order because the ranking wasn't super accurate. For example, species 4 might have only bloomed in May, and species 5 and 6 both bloomed in June July and August, but rank wouldn't pick up on the more subtle differences 
+# mod_order  <- lm(med_supercooling ~
+#                   flwr_order +
+#                   Species +
+#                   video,
+#                 data = cold_all_short %>% 
+#                   filter(tot_reps>4) %>% 
+#                   filter(Tissue_combined == "Seedling") %>% 
+#                   mutate(season = as.factor(season)) %>% 
+#                   filter(!is.na(med_supercooling)))
+# print(mod_order)
+# summary(mod_order)
+# anova(mod_order)
 
-#make a mmixed model for first flower date analysis
+## make a mixed model for first flower date analysis
+## Instead of rank, we used month first flower here. this provides more detail than spring/summer and is more accurate than flower rank
 mod_first  <- lmer(med_supercooling ~
                    first_flwr +
                    (1|Species) +
@@ -251,12 +260,14 @@ summary(mod_first)
 anova(mod_first)
 
 
-## Where are the differences among species?
-# sorting through this output to figure out which species are different to put letters above species on teh graph seems like a hot mess. There has to be a better way to do this in R but I don't know how 
-post_phen <- TukeyHSD(aov(med_supercooling ~
-                           Species, 
-                         data = cold_all_short%>% filter(tot_reps>4) %>% filter(Tissue_combined == "Leaf")))
-print(post_phen)
+## Post hoc tests: Where are the differences among species?
+## Although, do we care about species differences here? That seems better addressed in the second question that also examines tissue type
+
+# sorting through this output to figure out which species are different to put letters above species on teh graph seems like a hot mess. There has to be a better way to do this in R but I don't know how - Jon fixes below
+# post_phen <- TukeyHSD(aov(med_supercooling ~
+#                            Species, 
+#                          data = cold_all_short%>% filter(tot_reps>4) %>% filter(Tissue_combined == "Leaf")))
+# print(post_phen)
 
 ## better posthoc test
 install.packages("agricolae")
@@ -277,41 +288,47 @@ spring_summer <- ggplot(data = cold_all_short %>% filter(Tissue_combined == "See
   ylab("Cold tolerance (median freezing temp "*~degree~"C)") +
   xlab("Flower Season") +
   theme_classic() +
-  scale_fill_manual(values = c("pink", "lightgreen"), name = NULL) +
+  annotate("text", x =0.8, y = -24, label = "p < 0.033", size = 4) +
+  scale_fill_manual(values = c("lightskyblue", "khaki1"), name = NULL) +
   theme(legend.position = "none",
         text = element_text(size = 15))
+spring_summer
 
-# Figure 3b: species supercooling organized in flwoering order
+
+# Figure 3b: species supercooling organized in flwoering month
 # coloring is all messed up
-flwr_rank <- ggplot(data = cold_all_short %>% 
+flwr_month <- ggplot(data = cold_all_short %>% 
          filter(tot_reps>4) %>%
          filter(Tissue_combined == "Seedling") , 
        aes(x = first_flwr, y = med_supercooling)) +
-  geom_jitter(width = 0.2) +
-  stat_smooth(method = "lm") +
+  # This code is problematic. Can's get points to change shape or have an outline
+  geom_jitter(width = 0.2, shape = 21, color = "black", size = 3, aes(fill = first_flwr)) +
+  stat_smooth(method = "lm", color = "black") +
   ylab(NULL) +
   xlab("Month of First Flower") +
+  annotate("text", x = 4.9, y = -24, label = "p < 0.001", size = 4) +
   theme_classic() +
-  theme(text = element_text(size = 15)) 
+  theme(text = element_text(size = 15), legend.position = "none") +
+  scale_fill_gradientn (breaks = c(5,6), colors = c( "lightskyblue", "khaki1")) #to make this match better with Fig 3a, month 7 and 8 should be the same color as "summer" since month 6 would be a mix of spring and summer species (since our cutoff was June 15) but months 7 and 8 would be solidly in summer
+flwr_month
 
 
-flwr_rank_box <- ggplot(data = cold_all_short %>% 
-                      filter(tot_reps>4) %>%
-                      filter(Tissue_combined == "Seedling") , 
-                    aes(x = first_flwr, y = med_supercooling)) +
-  geom_boxplot(aes(fill = reorder(Species, flwr_order)), width = 0.25) +
-  stat_smooth(method = "lm") +
-  ylab(NULL) +
-  xlab("Flower order rank") +
-  theme_classic() +
-  theme(text = element_text(size = 15)) +
-  guides(fill=guide_legend(title="Species"))
+# flwr_rank_box <- ggplot(data = cold_all_short %>% 
+#                       filter(tot_reps>4) %>%
+#                       filter(Tissue_combined == "Seedling") , 
+#                     aes(x = first_flwr, y = med_supercooling)) +
+#   geom_boxplot(aes(fill = reorder(Species, flwr_order)), width = 0.25) +
+#   stat_smooth(method = "lm") +
+#   ylab(NULL) +
+#   xlab("Flower order rank") +
+#   theme_classic() +
+#   theme(text = element_text(size = 15)) +
+#   guides(fill=guide_legend(title="Species"))
 
-#this is a nice package for making ggplots look better
-#install.packages("ggpubr")
-library(ggpubr)
-
-ggarrange(spring_summer, flwr_rank, ncol = 2, widths = c(1, 3))
+## Attemptin to save the graphs together, but it is not working. Need to look into fixing this, adjusting sizes of each graph, and adjusting font size
+pdf(Fig3.pdf)
+grid.arrange(spring_summer, flwr_month, ncol = 2, widths = c(1, 2.5))
+dev.off()
 
 
 ## *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~
@@ -336,15 +353,17 @@ print(mod_tiss)
 summary(mod_tiss)
 anova(mod_tiss)
 
+## Posthoc tests
 library(lsmeans)
 emmeans(mod_tiss, pairwise~Tissue_combined|Species)
 
 
-#This code gives me believable differences but I'm not sure if it's the correct way to do it becaues it only looks at Species:Tissue comparisons. Those are the only comparissons I'm interested in anyways, but it feels wierd not to have the other factors in the model. 
-posthoc2 <- TukeyHSD(aov(med_supercooling ~
-                           Species:Tissue_combined, 
-                         data = cold_all_short%>% filter(tot_reps>4)))
-print(posthoc2)
+##This code gives me believable differences but I'm not sure if it's the correct way to do it becaues it only looks at Species:Tissue comparisons. Those are the only comparissons I'm interested in anyways, but it feels wierd not to have the other factors in the model. 
+## Look at code above to see Jon's posthoc testing
+# posthoc2 <- TukeyHSD(aov(med_supercooling ~
+#                            Species:Tissue_combined, 
+#                          data = cold_all_short%>% filter(tot_reps>4)))
+# print(posthoc2)
 
 # adjusting the data a bit so it's easier to look at the comparisions I want  
 m <- do.call(rbind.data.frame, posthoc2) %>% #turns it into a dataframe
@@ -382,47 +401,60 @@ k <- do.call(rbind.data.frame, posthoc) %>% #turns it into a dataframe
 
 ############# Graphing
 ##### Tissue type/age and spp ~*~*~*~*~*~*~
+#merging in full names so they can be included in graph
+cold_all_short <- left_join(cold_all_short, names, by = c("Species" = "sppcode"))
 
 ## If you want to save the graph below, unhash these next two lines of code. Possibly change the name if you don't want to overwrite the last one
 #dev.off() #cleaning R, just in case
-#pdf("/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/ColdTol_byspp_wletters.pdf", width = 15, height = 7) #This saves the pdf
+#pdf("/Users/laura/Desktop/Writing Projects/tissue cold tol/R/tissue_cold_tol/output/ColdTol_byspp_wletters_june2020.pdf", width = 12, height = 5) #This saves the pdf
 
-## basic graph of the data. I don't really care for hte box plot format (Changes: fix colors; species codes or full spcies names; shift graph so y legend fits; center justify yaxis so cold tolerance is centered over the middle of the second line of text)
-ggplot(data = cold_all_short %>% filter(tot_reps>4), 
-       aes(x = Species, y = med_supercooling, fill = factor(Tissue_combined))) +
+## basic graph of the data. (Changes: fix colors; species codes or full spcies names; shift graph so y legend fits; center justify yaxis so cold tolerance is centered over the middle of the second line of text)
+ggplot(data = cold_all_short %>% filter(tot_reps>2, Species != "AQUCAN", Species != "SYMOBL", Species != "LATVEN", Species != "LIACYL"), 
+       aes(x = name, y = med_supercooling, fill = factor(Tissue_combined))) +
   geom_boxplot(notch = FALSE, varwidth = FALSE) +
-  ylab("Cold tolerance\n(median supercooling temp "*~degree~"C)") +
+  ylab("Freeze temp "*~degree~"C)") +
   xlab("Species") +
   guides(fill=guide_legend(title="Tissue")) +
   theme_classic() +
+  scale_fill_manual(values = c("lightgoldenrod", "olivedrab3", "orange3"))+
   theme(axis.text.x=element_text(angle=90,hjust=1),
         plot.margin = unit(c(0.5, 0.5, 0.5, 1), "cm"),
         axis.title.y=element_text(size=13, hjust=0.5),
-        panel.border = element_rect(colour = "black", fill = NA, size =1)) +
-  annotate("text", x = 2.75, y = -14.5, label = "B") + #ASCSYR
-  annotate("text", x = 3, y = -12, label = "AB", size = 3) +  #ASCSYR
-  annotate("text", x = 3.25, y = -9, label = "A") + #ASCSYR
-  annotate("text", x = 4.75, y = -13, label = "B") + #DESILL
-  annotate("text", x = 5, y = -12.2, label = "AB", size = 3) + #DESILL
-  annotate("text", x = 5.25, y = -9, label = "A") + #DESILL
-  annotate("text", x = 5.75, y = -11.5, label = "AB", size = 3) + #HELHEL
-  annotate("text", x = 6, y = -13.7, label = "B") + #HELHEL
-  annotate("text", x = 6.25, y = -9.05, label = "A") + #HELHEL
-  annotate("text", x = 7.75, y = -15.5, label = "B") + #OXAVIO
-  annotate("text", x = 8, y = -10.5, label = "A") + #OXAVIO
-  annotate("text", x = 8.25, y = -9.22, label = "A") + #OXAVIO
-  annotate("text", x = 8.75, y = -16, label = "B") + #PREALB
-  annotate("text", x = 9, y = -11, label = "A") + #PREALB
-  annotate("text", x = 9.25, y = -9.22, label = "A") + #PREALB
-  annotate("text", x = 9.75, y = -12, label = "B") + #RATPIN
-  annotate("text", x = 10, y = -9.3, label = "AB", size = 3) + #RATPIN
-  annotate("text", x = 10.25, y = -8.95, label = "A") + #RATPIN
-  annotate("text", x = 10.75, y = -16, label = "B") + #SOLGRA
-  annotate("text", x = 11, y = -11, label = "A") + #SOLGRA
-  annotate("text", x = 11.25, y = -9.7, label = "A") + #SOLGRA
-  annotate("text", x = 13.75, y = -18, label = "B") + #SYMPIL
-  annotate("text", x = 14, y = -10.4, label = "A") + #SYMPIL
-  annotate("text", x = 14.25, y = -8.5, label = "A")  #SYMPIL
+        panel.border = element_rect(colour = "black", fill = NA, size =1),
+        legend.position = "top") +
+  ggpubr::rotate_x_text(angle = 45) +
+  scale_x_discrete(labels = wrap_format(10)) +
+  annotate("text", x = 1.75, y = -14, label = "A") + #ascsyr
+  annotate("text", x = 2, y = -13.4, label = "A") +  #ascsyr
+  annotate("text", x = 2.25, y = -8.9, label = "B") + #ascsyr
+  annotate("text", x = 2.75, y = -11.3, label = "A") + #ceaame
+  annotate("text", x = 3, y = -11.1, label = "A") +  #ceaame
+  annotate("text", x = 3.25, y = -10, label = "B") + #ceaame
+  annotate("text", x = 3.75, y = -13.3, label = "A") + #desill
+  annotate("text", x = 4, y = -13.2, label = "A") +  #desill
+  annotate("text", x = 4.25, y = -9, label = "B") + #desill
+  annotate("text", x = 4.75, y = -15.2, label = "A") + #solgra/eutgra
+  annotate("text", x = 5, y = -9.3, label = "B") + #solgra/eutgra
+  annotate("text", x = 5.25, y = -8.6, label = "B") + #solgra/eutgra
+  annotate("text", x = 5.75, y = -11.5, label = "A") + #HELHEL
+  annotate("text", x = 6, y = -13.7, label = "A") + #HELHEL
+  annotate("text", x = 6.25, y = -10.6, label = "B") + #HELHEL
+  annotate("text", x = 6.75, y = -15.5, label = "A") + #oxavio
+  annotate("text", x = 7, y = -10.6, label = "B") + #oxavio
+  annotate("text", x = 7.25, y = -10.5, label = "B") + #oxavio
+  annotate("text", x = 7.75, y = -14.5, label = "A") + #prealb
+  annotate("text", x = 8, y = -13, label = "B") + #preabl
+  annotate("text", x = 8.25, y = -9.5, label = "C") + #prealb
+  annotate("text", x = 8.75, y = -11, label = "A") + #ratpin
+  annotate("text", x = 9, y = -9.5, label = "B") + #ratpin
+  annotate("text", x = 9.25, y = -10.5, label = "A") + #ratpin
+  annotate("text", x = 9.75, y = -13, label = "A") + #symnov
+  annotate("text", x = 10, y = -13, label = "A") + #symnov
+  annotate("text", x = 10.25, y = -10.7, label = "B") + #symnov
+  annotate("text", x = 10.75, y = -16.6, label = "A") + #Sympil
+  annotate("text", x = 11, y = -10.4, label = "B") + #Sympil
+  annotate("text", x = 11.25, y = -10, label = "B") #Sympil
+
 dev.off()
 
 ## Graphing tissues separately: This helps show how seedling were more cold tolerant but also more variable. Edits: get rid of boxes around tissue types; get rid of legend; Possibly come up with a better way to show the differences in variation. 
@@ -498,45 +530,79 @@ timing <- full_join(plant, emerge, by = c("spp" = "Species", "Rep")) %>%
   
 # making a summary to graph
 timing_sum <- timing %>%
+  filter(Tissue_combined == "Seedling") %>%
   group_by(spp) %>%
   summarise(cold = mean(med_supercooling, na.rm = TRUE), 
-            sprout = mean(sprouttime, na.rm = TRUE))
+            sprout = mean(sprouttime, na.rm = TRUE),
+            cold_var = var(med_supercooling, na.rm = TRUE),
+            sprout_var = var(sprouttime, na.rm = TRUE),
+            n=n())
 
-####### Data Analysis
-q2_all_mod <-lm(med_supercooling ~ sprouttime + spp + video, data = timing %>% filter(spp != "AQUCAN"))
 
-summary(q2_all_mod)
-anova(q2_all_mod)
+####### Data Analysis - not sure which model was best yet
+## Fixed model
+# q2_all_mod <-lm(med_supercooling ~ 
+#                   sprouttime + 
+#                   spp + 
+#                   video, 
+#                 data = timing %>% filter(spp != "AQUCAN"))
+# 
+# summary(q2_all_mod)
+# anova(q2_all_mod)
+
+### mixed model - Currently what we are using in the ms
+q3_all_mod <- lmer(med_supercooling ~
+                     sprouttime +
+                     (1|video) +
+                     (1|planting_round) +
+                     (1|spp),
+                   data = timing %>% filter(spp != "AQUCAN", Tissue_combined == "Seedling"))
+summary(q3_all_mod)
+anova(q3_all_mod)
+
+## simple correlation bewteen sprout timing and cold tolerance
+#q3_mod <-lm(med_supercooling ~ sprouttime, data = timing %>% filter (spp != "AQUCAN", #Tissue_combined == "Seedling"))
+#print(q3_mod)
+
 
 ## Mean species values
-q2_mod <- lm(cold ~ sprout, data = timing_sum %>% filter(spp != "AQUCAN"))       
-q2_mod <- lm(cold ~ log(sprout), data = timing_sum)  
-print(q2_mod)
-summary(q2_mod)
+# Is this the model we would liek to use? Does it make sense to use the mean value for species?
+# q2_mod <- lm(cold ~ sprout, data = timing_sum %>% filter(spp != "AQUCAN"))       
+# #q2_mod <- lm(cold ~ log(sprout), data = timing_sum)  
+# print(q2_mod)
+# summary(q2_mod)
 
-q2_cor <- cor(x = timing_sum$sprout, y = timing_sum$cold)
-print(q2_cor)
-summary(q2_cor)
+#q2_cor <- cor(x = timing_sum$sprout, y = timing_sum$cold)
+#print(q2_cor)
+#summary(q2_cor)
 
 
 
 ##### Graphing
+### by species
 ggplot(data = timing_sum %>% filter(spp != "AQUCAN"),
        aes(x = sprout, y = cold))+
-  geom_point() +
+  #geom_smooth(method = "lm", color = "black", fill = "azure3") +
+  geom_errorbar(aes(x=sprout, ymin = cold-(sqrt(cold_var)/sqrt(n)), ymax=cold+(sqrt(cold_var)/sqrt(n)))) +
+  geom_errorbarh(aes(y=cold, xmin = sprout-(sqrt(sprout_var)/sqrt(n)), xmax=sprout+(sqrt(sprout_var)/sqrt(n)))) +
+  geom_point(size = 2.5, shape = 23, color = "black", fill="indianred1") +
   ylim(-20, -7) +
   xlim(3, 20) +
-  geom_smooth(method = "lm") +
-  theme_classic ()
+  ylab("Freeze Temp ("*~degree~"C)") +
+  xlab("Time to emergence (days)") +
+  annotate("text", x = 19, y = -19.5, label = "p = 0.6") +
+  theme_classic () +
+  theme(legend.position = "none", 
+        panel.background =  element_rect(color= "black", fill = NA, size =1.25))
 
-## A box plot that shows variation along both yand x axes would be good.
-ggplot(data = timing_sum %>% filter(spp != "AQUCAN"),
-       aes(x = sprout, y = cold))+
-  geom_point() +
-  ylim(-20, -7) +
-  xlim(3, 20) +
-  geom_smooth(method = "lm") +
-  theme_classic ()
+# # ## A box plot that shows variation along both yand x axes would be good.
+# ggplot(data = timing_sum %>% filter(spp != "AQUCAN"),
+#        aes(x = sprout, y = cold))+
+#   geom_point() +
+#   ylim(-20, -7) +
+#   xlim(3, 20) +
+#   geom_smooth(method = "lm") +
+#   theme_classic ()
 
 
 # graphing to see how time to emergence relates to cold tolerance of seedligns
