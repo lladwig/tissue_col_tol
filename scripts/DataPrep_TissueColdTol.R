@@ -555,7 +555,7 @@ q3_all_mod <- lmer(med_supercooling ~
                      sprouttime +
                      (1|video) +
                      (1|planting_round) +
-                     (1|spp),
+                     (1+sprouttime|spp),
                    data = timing %>% filter(spp != "AQUCAN", Tissue_combined == "Seedling"))
 summary(q3_all_mod)
 anova(q3_all_mod)
